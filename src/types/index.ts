@@ -4,8 +4,12 @@ export interface PackageMeta {
   taskId: string
   caseName: string
   createdAt: string
+  uploadedAt: string
   totalRuns: number
   totalRounds: number
+  averageScore: number
+  consistencyPercentage: number
+  conclusion: string
 }
 
 export interface RuleHeatmapCell {

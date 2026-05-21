@@ -34,8 +34,12 @@ export async function parseZip(buffer: Buffer): Promise<PackageAnalysis> {
     taskId: overview.task?.id || '',
     caseName: overview.task?.caseName || '',
     createdAt: overview.task?.createdAt || new Date().toISOString(),
+    uploadedAt: new Date().toISOString(),
     totalRuns: overview.analysis?.summary?.completedRuns || 0,
     totalRounds: 0,
+    averageScore: overview.analysis?.summary?.averageScore || 0,
+    consistencyPercentage: overview.analysis?.summary?.consistencyPercentage || 0,
+    conclusion: overview.analysis?.summary?.conclusion || '',
   }
 
   const rounds: RoundData[] = []

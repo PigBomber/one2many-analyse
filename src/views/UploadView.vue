@@ -1,7 +1,7 @@
 <template>
   <div class="upload-page">
     <el-row :gutter="20">
-      <el-col :span="12">
+      <el-col :span="10">
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
@@ -41,7 +41,7 @@
         </el-card>
       </el-col>
 
-      <el-col :span="12">
+      <el-col :span="14">
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
@@ -49,16 +49,30 @@
               <span>历史分析包</span>
             </div>
           </template>
-          <el-table :data="packages" stripe style="width: 100%" v-loading="loading">
-            <el-table-column prop="taskId" label="任务ID" width="80" />
-            <el-table-column prop="caseName" label="案例名称" show-overflow-tooltip />
-            <el-table-column prop="totalRuns" label="运行次数" width="90" align="center" />
-            <el-table-column label="上传时间" width="170">
+          <el-table :data="packages" stripe style="width: 100%" v-loading="loading" empty-text="暂无分析数据">
+            <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="caseName" label="案例名称" min-width="180" show-overflow-tooltip />
+            <el-table-column label="平均分" width="80" align="center">
               <template #default="{ row }">
-                {{ new Date(row.createdAt).toLocaleString('zh-CN') }}
+                <span :style="{ color: row.averageScore >= 80 ? '#67C23A' : row.averageScore >= 60 ? '#E6A23C' : '#F56C6C', fontWeight: 700 }">
+                  {{ row.averageScore?.toFixed(1) || '-' }}
+                </span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="100" align="center">
+            <el-table-column label="一致性" width="80" align="center">
+              <template #default="{ row }">
+                <span :style="{ color: row.consistencyPercentage >= 80 ? '#67C23A' : '#F56C6C', fontWeight: 700 }">
+                  {{ row.consistencyPercentage ?? '-' }}%
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="totalRuns" label="运行数" width="75" align="center" />
+            <el-table-column label="上传时间" width="170">
+              <template #default="{ row }">
+                {{ new Date(row.uploadedAt).toLocaleString('zh-CN') }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button type="primary" link @click="$router.push(`/dashboard/${row.packageId}`)">
                   查看看板
@@ -66,7 +80,6 @@
               </template>
             </el-table-column>
           </el-table>
-          <el-empty v-if="!loading && packages.length === 0" description="暂无分析数据" />
         </el-card>
       </el-col>
     </el-row>
