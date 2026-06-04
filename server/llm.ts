@@ -149,7 +149,19 @@ async function callLlm(
   prompt: string,
 ): Promise<string> {
   const start = Date.now()
-  console.log(`[${timestamp()}] [LLM] >>> Calling ${provider} (model=${model}), prompt length=${prompt.length}`)
+  console.log(`[${timestamp()}] [LLM] >>> Calling ${provider} (model=${model}, url=${url})`)
+  console.log(`[${timestamp()}] [LLM] >>> Prompt preview (first 500 chars): ${prompt.slice(0, 500)}`)
+  console.log(`[${timestamp()}] [LLM] >>> Prompt full length=${prompt.length} chars`)
+
+  const requestBody = {
+    model,
+    messages: [
+      { role: 'user', content: prompt },
+    ],
+    temperature: 0.3,
+    max_tokens: 8192,
+  }
+  console.log(`[${timestamp()}] [LLM] >>> Request body: model=${model}, temperature=0.3, max_tokens=8192`)
 
   const response = await fetch(url, {
     method: 'POST',
@@ -157,28 +169,32 @@ async function callLlm(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 8192,
-    }),
+    body: JSON.stringify(requestBody),
   })
 
   const elapsed = Date.now() - start
+  const responseText = await response.text()
 
   if (!response.ok) {
-    const text = await response.text()
-    console.error(`[${timestamp()}] [LLM] <<< ${provider} FAILED (${response.status}) in ${elapsed}ms: ${text.slice(0, 500)}`)
-    throw new Error(`${provider} API error: ${response.status} ${text}`)
+    console.error(`[${timestamp()}] [LLM] <<< ${provider} FAILED (${response.status}) in ${elapsed}ms`)
+    console.error(`[${timestamp()}] [LLM] <<< Error response: ${responseText.slice(0, 2000)}`)
+    throw new Error(`${provider} API error: ${response.status} ${responseText}`)
   }
 
-  const result = await response.json() as any
+  const result = JSON.parse(responseText) as any
   const content = result.choices?.[0]?.message?.content || ''
   const usage = result.usage
-  console.log(`[${timestamp()}] [LLM] <<< ${provider} SUCCESS in ${elapsed}ms, tokens: prompt=${usage?.prompt_tokens ?? '?'} completion=${usage?.completion_tokens ?? '?'} total=${usage?.total_tokens ?? '?'}, response length=${content.length}`)
+  const finishReason = result.choices?.[0]?.finish_reason
+
+  console.log(`[${timestamp()}] [LLM] <<< ${provider} SUCCESS in ${elapsed}ms`)
+  console.log(`[${timestamp()}] [LLM] <<< finish_reason=${finishReason}, tokens: prompt=${usage?.prompt_tokens ?? '?'} completion=${usage?.completion_tokens ?? '?'} total=${usage?.total_tokens ?? '?'}`)
+  console.log(`[${timestamp()}] [LLM] <<< Response length=${content.length} chars`)
+  console.log(`[${timestamp()}] [LLM] <<< Response preview (first 1000 chars):\n${content.slice(0, 1000)}`)
+
+  if (content.length > 1000) {
+    console.log(`[${timestamp()}] [LLM] <<< Response tail (last 500 chars):\n${content.slice(-500)}`)
+  }
+
   return content
 }
 
