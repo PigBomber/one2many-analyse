@@ -9,4 +9,5 @@ services:
     environment:
       - NODE_ENV=production
       - GLM_API_KEY=${GLM_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     restart: unless-stopped

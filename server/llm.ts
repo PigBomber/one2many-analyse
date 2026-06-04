@@ -137,11 +137,21 @@ ${runDetailsStr}
 为了消除这条规则的判定波动，建议对规则描述做什么修改？`
 }
 
-export async function callGlm(prompt: string): Promise<string> {
-  const apiKey = process.env.GLM_API_KEY || ''
-  const model = process.env.GLM_MODEL || 'glm-4-flash'
+function timestamp(): string {
+  return new Date().toISOString()
+}
 
-  const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+async function callLlm(
+  provider: string,
+  url: string,
+  apiKey: string,
+  model: string,
+  prompt: string,
+): Promise<string> {
+  const start = Date.now()
+  console.log(`[${timestamp()}] [LLM] >>> Calling ${provider} (model=${model}), prompt length=${prompt.length}`)
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -157,21 +167,51 @@ export async function callGlm(prompt: string): Promise<string> {
     }),
   })
 
+  const elapsed = Date.now() - start
+
   if (!response.ok) {
     const text = await response.text()
-    throw new Error(`GLM API error: ${response.status} ${text}`)
+    console.error(`[${timestamp()}] [LLM] <<< ${provider} FAILED (${response.status}) in ${elapsed}ms: ${text.slice(0, 500)}`)
+    throw new Error(`${provider} API error: ${response.status} ${text}`)
   }
 
   const result = await response.json() as any
-  return result.choices?.[0]?.message?.content || ''
+  const content = result.choices?.[0]?.message?.content || ''
+  const usage = result.usage
+  console.log(`[${timestamp()}] [LLM] <<< ${provider} SUCCESS in ${elapsed}ms, tokens: prompt=${usage?.prompt_tokens ?? '?'} completion=${usage?.completion_tokens ?? '?'} total=${usage?.total_tokens ?? '?'}, response length=${content.length}`)
+  return content
+}
+
+export async function callLlmWithFallback(prompt: string): Promise<string> {
+  const glmKey = process.env.GLM_API_KEY || ''
+  const glmModel = process.env.GLM_MODEL || 'glm-4-flash'
+
+  if (glmKey) {
+    try {
+      return await callLlm('GLM', 'https://open.bigmodel.cn/api/paas/v4/chat/completions', glmKey, glmModel, prompt)
+    } catch (err: any) {
+      console.warn(`[${timestamp()}] [LLM] GLM failed, falling back to DeepSeek: ${err.message}`)
+    }
+  } else {
+    console.warn(`[${timestamp()}] [LLM] GLM_API_KEY not set, skipping to DeepSeek`)
+  }
+
+  const dsKey = process.env.DEEPSEEK_API_KEY || ''
+  const dsModel = process.env.DEEPSEEK_MODEL || 'deepseek-chat'
+
+  if (!dsKey) {
+    throw new Error('Both GLM and DeepSeek API keys are unavailable. Set GLM_API_KEY or DEEPSEEK_API_KEY.')
+  }
+
+  return callLlm('DeepSeek', 'https://api.deepseek.com/chat/completions', dsKey, dsModel, prompt)
 }
 
 export function generateReport(data: AggregatedAnalysis): Promise<string> {
   const prompt = buildReportPrompt(data)
-  return callGlm(prompt)
+  return callLlmWithFallback(prompt)
 }
 
 export function diagnoseRule(data: AggregatedAnalysis, ruleId: string): Promise<string> {
   const prompt = buildDiagnosePrompt(data, ruleId)
-  return callGlm(prompt)
+  return callLlmWithFallback(prompt)
 }
