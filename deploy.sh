@@ -12,6 +12,7 @@ rsync -avz --delete \
   --exclude='data' \
   --exclude='uploads' \
   --exclude='.git' \
+  --exclude='.env' \
   ./ $SERVER:$REMOTE_DIR/
 
 echo "==> 2/5 在服务器上构建 Docker 镜像..."
